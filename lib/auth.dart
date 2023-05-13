@@ -1,17 +1,18 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
-class Auth{
+class Auth {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   User? get currentUser => _firebaseAuth.currentUser;
   Stream<User?> get authStatesChanged => _firebaseAuth.authStateChanges();
 
+  // ignore: non_constant_identifier_names
   Future<void> SignInWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
     await _firebaseAuth.signInWithEmailAndPassword(
-      email: email, 
-      password: password, 
+      email: email,
+      password: password,
     );
   }
 
@@ -20,8 +21,8 @@ class Auth{
     required String password,
   }) async {
     await _firebaseAuth.createUserWithEmailAndPassword(
-      email: email, 
-      password: password,  
+      email: email,
+      password: password,
     );
   }
 

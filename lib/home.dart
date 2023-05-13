@@ -1,9 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:audio_book_finder/auth.dart';
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:audio_book_finder/models/channel_model.dart';
+import 'package:audio_book_finder/models/video_model.dart';
+import 'package:audio_book_finder/screens/video_screen.dart';
+import 'package:audio_book_finder/services/api_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -21,24 +23,76 @@ class _HomePageState extends State<HomePage>
     Tab(icon: Icon(Icons.contact_page, color: Colors.white))
   ];
   late TabController _tabController;
-  List<dynamic> _books = [];
-  final Uri _url = Uri.parse(
-      'https://www.audible.com/pd/The-Count-of-Monte-Cristo-Audiobook/B005GFQ5WQ');
-  final Uri _url2 = Uri.parse(
-      'https://www.audible.com/pd/Robinson-Crusoe-Audiobook/B002V5CW08?plink=fS9Tbc6lFMCBDcan&ref=a_pd_The-Co_c5_adblp13npsbx_1_3&pf_rd_p=c09b9598-fc4b-4bcd-829c-1bd478ce94d5&pf_rd_r=ZST9165ZHKJDWD5P28TA&pageLoadId=pnrSnPVQ3GjEsVbZ&creativeId=aa49be53-d2b6-462f-8696-8b1f281125e6');
+  late Channel _channel;
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: myTabs.length, vsync: this);
-    _getBooks();
+    _initChannel();
   }
 
-  Future<void> _getBooks() async {
-    final String response = await rootBundle.loadString('assets/sample.json');
-    final data = json.decode(response);
+  _initChannel() async {
+    Channel channel = await APIService.instance
+        .fetchChannel(channelId: 'UCA8Bg-tQKShZRZhe610SC-Q');
     setState(() {
-      _books = data['book'];
+      _channel = channel;
     });
+  }
+
+  _buildVideo(Video video) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VideoScreen(id: video.id),
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(10.0),
+        height: 140.0,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              offset: Offset(0, 1),
+              blurRadius: 6.0,
+            ),
+          ],
+        ),
+        child: Row(
+          children: <Widget>[
+            Image(
+              width: 150.0,
+              image: NetworkImage(video.thumbnailUrl),
+            ),
+            const SizedBox(width: 10.0),
+            Expanded(
+              child: Text(
+                video.title,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 18.0,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  _loadMoreVideos() async {
+    _isLoading = true;
+    List<Video> moreVideos = await APIService.instance
+        .fetchVideosFromPlaylist(playlistId: _channel.uploadPlaylistId);
+    List<Video> allVideos = _channel.videos..addAll(moreVideos);
+    setState(() {
+      _channel.videos = allVideos;
+    });
+    _isLoading = false;
   }
 
   final User? user = Auth().currentUser;
@@ -172,135 +226,6 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _page2SRow() {
-    return InkWell(
-        onTap: () {
-          showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                    title: const Text('Count of Monte Cristo'),
-                    content: const Text(
-                        'On the eve of his marriage to the beautiful Mercedes, having that very day been made captain of his...'),
-                    actions: <Widget>[
-                      Row(
-                        children: [
-                          const Text('listen now on'),
-                          ElevatedButton(
-                              onPressed: _launchUrl,
-                              child: const Text('Audible'))
-                        ],
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Close'),
-                      )
-                    ]);
-              });
-        },
-        child: Container(
-          decoration: BoxDecoration(
-              border: Border.all(width: 10, color: Colors.black),
-              borderRadius: const BorderRadius.all(Radius.circular(8)),
-              color: const Color.fromARGB(255, 56, 56, 56)),
-          child: Row(children: [
-            const Padding(padding: EdgeInsets.all(5)),
-            //const Icon(Icons.book, color: Colors.white, size: 50),
-            Image.network(
-                'https://m.media-amazon.com/images/I/611Eot7+zJL._SL63_.jpg'),
-            Column(
-              children: const [
-                Text('Bookname: Count of Monte Cristo',
-                    style: TextStyle(color: Colors.white)),
-                Padding(padding: EdgeInsets.all(4)),
-                Text('Author: Alexandre Dumas',
-                    style: TextStyle(color: Colors.white)),
-              ],
-            )
-          ]),
-        ));
-  }
-
-  Widget _page2TRow() {
-    return InkWell(
-        onTap: () {
-          showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                    title: const Text('Robinson Crusoe'),
-                    content: const Text(
-                        "Widely regarded as the first English novel, Daniel Defoe's Robinson Crusoe is one of the most popular and influential adventure stories of all time. This classic tale of shipwreck and survival on an uninhabited island..."),
-                    actions: <Widget>[
-                      Row(
-                        children: [
-                          const Text('listen now on'),
-                          ElevatedButton(
-                              onPressed: _launchUrl2,
-                              child: const Text('Audible'))
-                        ],
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Close'),
-                      )
-                    ]);
-              });
-        },
-        child: Container(
-          decoration: BoxDecoration(
-              border: Border.all(width: 10, color: Colors.black),
-              borderRadius: const BorderRadius.all(Radius.circular(8)),
-              color: const Color.fromARGB(255, 56, 56, 56)),
-          child: Row(children: [
-            const Padding(padding: EdgeInsets.all(5)),
-            //const Icon(Icons.book, color: Colors.white, size: 50),
-            Image.network(
-              'https://m.media-amazon.com/images/I/51qBBzZYbVL._SL500_.jpg',
-              scale: 7,
-            ),
-            Column(
-              children: const [
-                Text('Bookname: Robinson Crusoe',
-                    style: TextStyle(color: Colors.white)),
-                Padding(padding: EdgeInsets.all(4)),
-                Text('Author: Daniel Defoe',
-                    style: TextStyle(color: Colors.white)),
-              ],
-            )
-          ]),
-        ));
-  }
-
-  Future<void> _launchUrl() async {
-    if (!await launchUrl(_url)) {
-      throw Exception('Could not launch $_url');
-    }
-  }
-
-  Future<void> _launchUrl2() async {
-    if (!await launchUrl(_url2)) {
-      throw Exception('Could not launch $_url2');
-    }
-  }
-
-  Widget _listview() {
-    return ListView.builder(
-      itemCount: _books.length,
-      itemBuilder: (context, index) {
-        final book = _books[index];
-        return ListTile(
-          leading: Image.network(book['images']['product']),
-          title: Text(book['title']),
-          subtitle: Text(book['authors'].join(', ')),
-          trailing: Text('\$${book['listPrice']['amount']}'),
-        );
-      },
-    );
-  }
-
   Widget _accountMM() {
     return Column(
       children: <Widget>[
@@ -341,7 +266,7 @@ class _HomePageState extends State<HomePage>
                 fontSize: 20)),
         const Padding(padding: EdgeInsets.all(30)),
         const Text(
-            '     If anyone reading this, I want you to know that the Developer of this appication got headage, neck pain, very little sleep, and maybe already die in the process of making this application.',
+            '     If anyone reading this, I want you to know that the Developer of this appication got headache, neck pain, very little sleep, and maybe already die in the process of making this application.',
             style: TextStyle(
               color: Colors.white,
             )),
@@ -367,6 +292,41 @@ class _HomePageState extends State<HomePage>
             )),
       ],
     );
+  }
+
+  Widget _listvideo() {
+    return SizedBox(
+        width: 500.0,
+        height: 600.0,
+        child: Scaffold(
+          body: _channel != null
+              ? NotificationListener<ScrollNotification>(
+                  onNotification: (ScrollNotification scrollDetails) {
+                    if (!_isLoading &&
+                        _channel.videos.length !=
+                            int.parse(_channel.videoCount) &&
+                        scrollDetails.metrics.pixels ==
+                            scrollDetails.metrics.maxScrollExtent) {
+                      _loadMoreVideos();
+                    }
+                    return false;
+                  },
+                  child: ListView.builder(
+                    itemCount: _channel.videos.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      Video video = _channel.videos[index];
+                      return _buildVideo(video);
+                    },
+                  ),
+                )
+              : Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).primaryColor, // Red
+                    ),
+                  ),
+                ),
+        ));
   }
 
   @override
@@ -399,16 +359,16 @@ class _HomePageState extends State<HomePage>
           ),
         ),
         Center(
-            child: Column(
+            child: SingleChildScrollView(
+                child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.start,
           children: <Widget>[
             const Padding(padding: EdgeInsets.all(5)),
             _page2FRow(),
-            _page2SRow(),
-            _page2TRow()
+            _listvideo()
           ],
-        )),
+        ))),
         Center(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
